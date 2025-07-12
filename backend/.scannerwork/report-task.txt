@@ -1,0 +1,7 @@
+organization=samudcha
+projectKey=samudcha_todolistlab
+serverUrl=https://sonarcloud.io
+serverVersion=8.0.0.65394
+dashboardUrl=https://sonarcloud.io/dashboard?id=samudcha_todolistlab
+ceTaskId=AZf9bVyuuiCQ8ho7AAt3
+ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZf9bVyuuiCQ8ho7AAt3
