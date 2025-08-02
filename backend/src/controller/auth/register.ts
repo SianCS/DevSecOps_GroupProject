@@ -1,17 +1,16 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
-
-import JWTUserData from "../../interfaces/JWTUserData";
+import { log } from "console";
 
 import { validateInput, ValidationSchema } from "../../plugin/validator";
 import { encodeJWT } from "../../plugin/JWT";
-
-import { log } from "console";
+import JWTUserData from "../../interfaces/JWTUserData";
 
 export default async function register(req: Request, res: Response) {
   const prisma = new PrismaClient();
   try {
+    // 1. กำหนด Schema สำหรับตรวจสอบข้อมูล โดยใช้ type จาก Validator ตัวใหม่
     const schema: ValidationSchema = {
       username: {
         type: "string",
@@ -20,19 +19,19 @@ export default async function register(req: Request, res: Response) {
         required: true,
       },
       email: {
-        type: "email",
-        minLength: 6,
+        type: "email", // <-- ใช้ "email" ได้เลย
         displayName: "อีเมล",
         required: true,
       },
       password: {
-        type: "string",
+        type: "password", // <-- ใช้ "password" เพื่อให้มีการตรวจสอบที่ซับซ้อนขึ้น
         minLength: 8,
         displayName: "รหัสผ่าน",
         required: true,
       },
     };
 
+    // 2. ตรวจสอบข้อมูลที่รับเข้ามา
     const validate = validateInput(req.body, schema);
     if (!validate.success) {
       res.status(400).json({ msg: validate.errorMsg });
@@ -41,22 +40,24 @@ export default async function register(req: Request, res: Response) {
 
     const { username, email, password } = validate.data;
 
-    const checker = await prisma.user.findFirst({
+    // 3. ตรวจสอบว่ามี username หรือ email ซ้ำในระบบหรือไม่
+    const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ username: username }, { email: email }],
       },
     });
 
-    if (checker) {
-      res
-        .status(400)
-        .json({ msg: "ชื่อผู้ใช้งาน หรืออีเมลนี้ถูกใช้งานไปแล้ว" });
+    if (existingUser) {
+      res.status(409).json({ msg: "ชื่อผู้ใช้งาน หรืออีเมลนี้ถูกใช้งานไปแล้ว" }); // 409 Conflict
       return;
     }
 
+    // 4. เข้ารหัสผ่าน
     const passwordHash: string = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
+    // 5. สร้างผู้ใช้ใหม่ในฐานข้อมูล
+    // (role จะถูกกำหนดเป็น STUDENT โดยอัตโนมัติตาม @default ใน schema)
+    const newUser = await prisma.user.create({
       data: {
         username: username,
         email: email,
@@ -64,18 +65,21 @@ export default async function register(req: Request, res: Response) {
       },
     });
 
+    // 6. เตรียมข้อมูลสำหรับสร้าง Token (JWT)
     const jwtEncodeData: JWTUserData = {
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
+      id: newUser.id,
+      username: newUser.username,
+      email: newUser.email,
+      role: newUser.role,
     };
 
     const token: string | null = await encodeJWT(jwtEncodeData);
 
-    res.status(200).json({ msg: "สมัครสมาชิกสำเร็จ", token });
+    // 7. ส่ง Token กลับไปให้ผู้ใช้
+    res.status(201).json({ msg: "สมัครสมาชิกสำเร็จ", token }); // 201 Created
   } catch (error) {
     log("[Express] register Error : ", error);
-    res.status(400).json({ msg: "สมัครสมาชิกไม่สำเร็จ" });
+    res.status(500).json({ msg: "สมัครสมาชิกไม่สำเร็จ" }); // 500 Internal Server Error
   } finally {
     await prisma.$disconnect();
   }

@@ -1,67 +1,73 @@
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
-import todoSchema from "../validate/TodoSchema";
 import { useEffect } from "react";
 import { toast } from "react-toastify";
-import useTodoStore from "../stores/useTodoStore";
 import { Loader } from "lucide-react";
+
+import todoSchema from "../validate/TodoSchema";
+import useTodoStore from "../stores/useTodoStore";
 
 function EditTodoPage({ resetForm, el }) {
   const editTodoList = useTodoStore((state) => state.editTodoList);
-  const initialData = {
-    to_title: el.to_title,
-  };
-  useEffect(() => {
-    reset(initialData);
-  }, [resetForm]);
+
   const {
     reset,
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({
+    // **สำคัญ:** ตั้งค่า defaultValues ด้วยข้อมูลที่ถูกต้อง (el.title)
+    defaultValues: {
+      title: el.title,
+    },
+    // ใช้ yup ตรวจสอบ field ที่ชื่อ "title"
     resolver: yupResolver(todoSchema.todoList),
-    shouldFocusError: true,
-    defaultValues: initialData,
   });
+
+  // ใช้ useEffect เพื่อ reset ค่าในฟอร์มเมื่อ dialog ถูกเปิด/ปิด
+  useEffect(() => {
+    reset({ title: el.title });
+  }, [resetForm, el.title, reset]);
+
+  // ฟังก์ชันที่ทำงานเมื่อกดยืนยันการแก้ไข
   const onEdit = async (data) => {
     try {
-      const res = await editTodoList(el.to_id, data);
-      document.getElementById(`updatetodo-form${el.to_id}`).close();
+      // data ที่ได้รับมาตอนนี้ถูกต้องแล้ว คือ { title: '...' }
+      const res = await editTodoList(el.id, data); // ส่ง el.id และข้อมูลใหม่ไป
+      document.getElementById(`updatetodo-form${el.id}`).close(); // ปิด modal
       toast.success(res.data.msg);
     } catch (error) {
       const errMsg = error.response?.data?.msg || error.message;
       toast.error(errMsg);
     }
   };
+
   return (
     <div>
-      <p>Edit form: {el.to_id} </p>
+      <p className="text-2xl font-bold mb-4">Edit: {el.title}</p>
       <form className="flex flex-col gap-3" onSubmit={handleSubmit(onEdit)}>
         <label className="text-lg">
-          {" "}
-          Title:
+          New Title:
+          {/* --- ส่วนที่แก้ไข --- */}
           <input
-            name="title"
+            {...register("title")} // **แก้ไข 1: เปลี่ยนเป็น "title"**
             type="text"
-            className="input"
-            {...register("to_title")}
+            className="input input-bordered w-full"
           />
-          {errors.to_title && (
-            <p className="text-red-500 text-sm">{errors.to_title?.message}</p>
+          {errors.title && ( // **แก้ไข 2: เช็ค error จาก "title"**
+            <p className="text-red-500 text-sm mt-1">{errors.title?.message}</p>
           )}
         </label>
-        <button className="btn btn-accent" disabled={isSubmitting}>
+        <button type="submit" className="btn btn-accent" disabled={isSubmitting}>
           {isSubmitting ? (
-            <p className="animate-spin">
-              <Loader />
-            </p>
+            <span className="loading loading-spinner"></span>
           ) : (
-            "Edit todolist"
+            "Save Changes"
           )}
         </button>
       </form>
     </div>
   );
 }
+
 export default EditTodoPage;

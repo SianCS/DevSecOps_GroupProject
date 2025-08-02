@@ -1,31 +1,36 @@
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router";
-import authSchema from "../validate/authSchema";
-import useAuthStore from "../stores/authStore";
+import { Link, useNavigate } from "react-router"; // 1. Import useNavigate
 import { toast } from "react-toastify";
 import { Loader } from "lucide-react";
 
+import authSchema from "../validate/authSchema";
+import useAuthStore from "../stores/authStore";
+
 function Login() {
+  const navigate = useNavigate(); // 2. เรียกใช้ hook
   const login = useAuthStore((state) => state.login);
+
   const {
     register,
-    reset,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(authSchema.login),
   });
+
+  // 3. แก้ไขฟังก์ชัน onLogin
   const onLogin = async (data) => {
     try {
-      const res = await login(data);
-      reset();
-      toast.success(res.data.msg);
+      await login(data);
+      toast.success("เข้าสู่ระบบสำเร็จ");
+      navigate("/"); // **สำคัญที่สุด: สั่งให้นำทางไปหน้าแรก (TodoPage)**
     } catch (error) {
-      const errMsg = error.response?.data?.msg || error.message;
+      const errMsg = error.response?.data?.msg || "เข้าสู่ระบบไม่สำเร็จ";
       toast.error(errMsg);
     }
   };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
@@ -41,10 +46,9 @@ function Login() {
               type="text"
               {...register("username")}
               className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your email"
             />
-            {errors.email && (
-              <p className="text-red-500 text-sm">{errors.email?.message}</p>
+            {errors.username && (
+              <p className="text-red-500 text-sm">{errors.username?.message}</p>
             )}
           </div>
           <div>
@@ -55,7 +59,6 @@ function Login() {
               type="password"
               {...register("password")}
               className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your password"
             />
             {errors.password && (
               <p className="text-red-500 text-sm">{errors.password?.message}</p>
@@ -67,11 +70,9 @@ function Login() {
             className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-200"
           >
             {isSubmitting ? (
-              <div className="flex gap-2">
-                <p className="animate-spin">
-                  <Loader />
-                </p>
-                <p>Logining....</p>
+              <div className="flex items-center justify-center gap-2">
+                <Loader className="animate-spin" />
+                <span>Logging in...</span>
               </div>
             ) : (
               "Login"

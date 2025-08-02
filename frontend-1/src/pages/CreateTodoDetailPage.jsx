@@ -1,110 +1,92 @@
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
-import todoSchema from "../validate/TodoSchema";
 import { useEffect } from "react";
 import { toast } from "react-toastify";
-import useDetailStore from "../stores/useDetailStore";
 import { Loader } from "lucide-react";
 
-function CreateTodoDetailPage({ resetForm, id }) {
+import todoSchema from "../validate/TodoSchema";
+import useDetailStore from "../stores/useDetailStore";
+
+function CreateTodoDetailPage({ resetForm, todolistId }) {
   const postTodoDetailById = useDetailStore(
     (state) => state.postTodoDetailById
   );
-  useEffect(() => {
-    reset();
-  }, [resetForm]);
+
   const {
     reset,
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({
+    // ใช้ schema ของ detail
     resolver: yupResolver(todoSchema.todoListDetail),
-    shouldFocusError: true,
-    defaultValues: { to_id: id, td_completed: "" },
+    defaultValues: {
+      title: "",
+      description: "",
+    },
   });
+
+  useEffect(() => {
+    // Reset ฟอร์มเมื่อมีการร้องขอ
+    reset();
+  }, [resetForm, reset]);
+
   const onCreate = async (data) => {
     try {
-      const res = await postTodoDetailById(data);
-      document.getElementById("createtodoDetail-form").close();
+      // **สำคัญ:** ส่ง todolistId และ data ไปให้ Store
+      const res = await postTodoDetailById(todolistId, data);
+      document.getElementById(`createtodoDetail-form`).close();
       toast.success(res.data.msg);
     } catch (error) {
       const errMsg = error.response?.data?.msg || error.message;
       toast.error(errMsg);
     }
   };
+
   return (
     <div>
-      <p>Create todo detail form </p>
+      <p className="text-2xl font-bold mb-4">Create New Detail</p>
       <form className="flex flex-col gap-3" onSubmit={handleSubmit(onCreate)}>
-        <label className="text-lg">
-          {" "}
-          Title:
+        {/* --- Title --- */}
+        <label className="form-control w-full">
+          <div className="label">
+            <span className="label-text">Title</span>
+          </div>
           <input
-            name="title"
+            {...register("title")}
             type="text"
-            className="input"
-            {...register("td_title")}
+            className={`input input-bordered w-full ${errors.title ? "input-error" : ""}`}
           />
-          {errors.td_title && (
-            <p className="text-red-500 text-sm">{errors.td_title?.message}</p>
+          {errors.title && (
+            <p className="text-red-500 text-sm mt-1">{errors.title?.message}</p>
           )}
         </label>
-        <label className="text-lg">
-          {" "}
-          Descript:
+
+        {/* --- Description --- */}
+        <label className="form-control w-full">
+          <div className="label">
+            <span className="label-text">Description</span>
+          </div>
           <input
-            name="descript"
+            {...register("description")}
             type="text"
-            className="input"
-            {...register("td_descript")}
+            className="input input-bordered w-full"
           />
-          {errors.td_descript && (
-            <p className="text-red-500 text-sm">
-              {errors.td_descript?.message}
-            </p>
+          {errors.description && (
+            <p className="text-red-500 text-sm mt-1">{errors.description?.message}</p>
           )}
         </label>
-        <label className="text-lg">
-          {" "}
-          To_id:
-          <input
-            name="to_id"
-            type="text"
-            className="input"
-            {...register("to_id")}
-          />
-          {errors.to_id && (
-            <p className="text-red-500 text-sm">{errors.to_id?.message}</p>
-          )}
-        </label>
-        <label className="text-lg">
-          {" "}
-          Status:
-          <select {...register("td_completed")}>
-            <option value="" disabled>
-              select...
-            </option>
-            <option value={false}>On process</option>
-            <option value={true}>Done</option>
-          </select>
-          {errors.td_completed && (
-            <p className="text-red-500 text-sm">
-              {errors.td_completed?.message}
-            </p>
-          )}
-        </label>
-        <button className="btn btn-accent" disabled={isSubmitting}>
+
+        <button type="submit" className="btn btn-primary mt-4" disabled={isSubmitting}>
           {isSubmitting ? (
-            <p className="animate-spin">
-              <Loader />
-            </p>
+            <span className="loading loading-spinner"></span>
           ) : (
-            "Edit todolist"
+            "Create Detail"
           )}
         </button>
       </form>
     </div>
   );
 }
+
 export default CreateTodoDetailPage;

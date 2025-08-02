@@ -1,132 +1,146 @@
-import { useNavigate, useParams } from "react-router";
 import { useEffect, useState } from "react";
-import useTodoStore from "../stores/useTodoStore";
-import { Trash } from "lucide-react";
-import CreateTodoDetailPage from "./CreateTodoDetailPage";
+import { useParams, useNavigate } from "react-router";
 import { toast } from "react-toastify";
+import { Loader, Trash, FilePlus, Edit } from "lucide-react";
+
+import useTodoStore from "../stores/useTodoStore";
 import useDetailStore from "../stores/useDetailStore";
+import useAuthStore from "../stores/authStore";
+
+import CreateTodoDetailPage from "./CreateTodoDetailPage";
 import EditTodoDetailPage from "./EditTodoDetailPage";
 
 function TodoDetailPage() {
-  const navi = useNavigate();
-  const [resetForm, setResetForm] = useState(false);
-  const [isDelete, setIsDelete] = useState(false);
   const { id } = useParams();
+  const navi = useNavigate();
+
+  const currentUser = useAuthStore((state) => state.user);
   const todoDetail = useTodoStore((state) => state.todoDetail);
+  const getTodoById = useTodoStore((state) => state.getTodoById);
   const deleteTodoDetailById = useDetailStore(
     (state) => state.deleteTodoDetailById
   );
-  const getTodoById = useTodoStore((state) => state.getTodoById);
-  const hdlClose = () => {
-    setResetForm((prv) => !prv);
-  };
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [resetCreateForm, setResetCreateForm] = useState(false);
+  const [resetEditForm, setResetEditForm] = useState(false);
+
   useEffect(() => {
-    getTodoById(id);
-  }, []);
-  const todoDetails = todoDetail.todolist_detail ?? [];
-  const localDate = (date) => {
-    return new Date(date).toLocaleString("en-EN", {
-      dateStyle: "long",
-      timeZone: "Asia/Bangkok",
-    });
-  };
-  const hdlDelete = async (id) => {
+    const fetchTodo = async () => {
+      setIsLoading(true);
+      await getTodoById(id);
+      setIsLoading(false);
+    };
+    fetchTodo();
+  }, [id, getTodoById]);
+
+  const hdlDeleteDetail = async (detailId) => {
     try {
-      setIsDelete(true);
-      const res = await deleteTodoDetailById(id);
-      toast.success(res.data.msg);
+      if (confirm("Are you sure you want to delete this detail?")) {
+        const res = await deleteTodoDetailById(detailId);
+        toast.success(res.data.msg);
+        await getTodoById(id);
+      }
     } catch (error) {
-      const errMsg = error.reponse?.data?.msg || error.message;
+      const errMsg = error.response?.data?.msg || error.message;
       toast.error(errMsg);
-    } finally {
-      setIsDelete(false);
     }
   };
+
+  if (isLoading) {
+    return <Loader className="animate-spin mx-auto mt-20" size={48} />;
+  }
+
+  // **สร้างตัวแปรเพื่อเช็คว่าเป็น Teacher หรือไม่ เพื่อให้โค้ดอ่านง่ายขึ้น**
+  const isTeacher = currentUser?.role === "TEACHER";
+
   return (
-    <div>
-      <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow mt-30">
-        <div className="flex items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">{todoDetail.to_title}</h2>
-            <p>ID: {todoDetail.to_id}</p>
-            <p>CreateAt: {localDate(todoDetail.createAt)}</p>
-          </div>
-        </div>
-        <h3 className="text-xl font-bold mb-4">Todo Details</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full border rounded-lg text-left">
-            <thead className="bg-gray-100 text-sm">
-              <tr>
-                <th className="p-3 border-b w-30">ID</th>
-                <th className="p-3 border-b w-30">Title</th>
-                <th className="p-3 border-b">Descript</th>
-                <th className="p-3 border-b">Status</th>
-                <th className="p-3 border-b">Edit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todoDetails.length > 0 ? (
-                todoDetail.todolist_detail.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="p-3 border-b">{item.td_id}</td>
-                    <td className="p-3 border-b">{item.td_title}</td>
-                    <td className="p-3 border-b">{item.td_descript}</td>
-                    <td className="p-3 border-b">
-                      {item.td_completed ? "Done" : "On process"}
-                    </td>
-                    <td className="text-center w-120">
-                      <div className="flex gap-5 w-full justify-center">
-                        <button
-                          className="btn btn-accent"
-                          disabled={isDelete}
-                          onClick={() =>
-                            document
-                              .getElementById(
-                                `updatetodoDetail-form${item.td_id}`
-                              )
-                              .showModal()
-                          }
-                        >
-                          Edit todo
-                        </button>
-                        <button
-                          className="btn btn-neutral"
-                          disabled={isDelete}
-                          onClick={() => hdlDelete(item.td_id)}
-                        >
-                          <Trash /> Delete todo
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="p-3 text-center text-gray-500">
-                    No todo detail found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="mt-10 flex justify-between mx-auto w-1/2">
-        <button className="btn btn-secondary btn-lg" onClick={() => navi("/")}>
-          Back to Todo page
-        </button>
+    <div className="container mx-auto p-4 md:p-8">
+      <button className="btn btn-ghost mb-4" onClick={() => navi(-1)}>
+        &larr; Back to All Lists
+      </button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-bold">
+          Todo: <span className="text-accent">{todoDetail?.title}</span>
+        </h1>
+
+        {/* ปุ่ม Create จะมองเห็นตลอด แต่กดได้เฉพาะ Teacher */}
         <button
-          className="btn btn-secondary btn-lg"
-          onClick={() =>
-            document.getElementById("createtodoDetail-form").showModal()
-          }
+          className="btn btn-primary"
+          onClick={() => {
+            setResetCreateForm((p) => !p);
+            document.getElementById("createtodoDetail-form").showModal();
+          }}
+          disabled={!isTeacher}
         >
-          Create new todo detail
+          <FilePlus /> Create New Detail
         </button>
       </div>
-      <dialog id={`createtodoDetail-form`} className="modal" onClose={hdlClose}>
-        <div className="modal-box rounded-lg">
-          <CreateTodoDetailPage resetForm={resetForm} id={id} />
+
+      <div className="overflow-x-auto">
+        <table className="table w-full">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {todoDetail?.details?.map((detail) => (
+              <tr key={detail.id} className="hover">
+                <td>{detail.title}</td>
+                <td>{detail.description || "-"}</td>
+                <td>
+                  <span
+                    className={`badge ${
+                      detail.completed ? "badge-success" : "badge-warning"
+                    }`}
+                  >
+                    {detail.completed ? "Done" : "On Process"}
+                  </span>
+                </td>
+                <td>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        setSelectedDetail(detail);
+                        setResetEditForm((p) => !p);
+                        document
+                          .getElementById(`updatetodoDetail-form${detail.id}`)
+                          .showModal();
+                      }}
+                      disabled={!isTeacher}
+                    >
+                      <Edit />
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm text-error"
+                      onClick={() => hdlDeleteDetail(detail.id)}
+                      disabled={!isTeacher}
+                    >
+                      <Trash />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {(!todoDetail?.details || todoDetail.details.length === 0) && (
+          <p className="text-center mt-8 text-gray-500">
+            No details found. Create one!
+          </p>
+        )}
+      </div>
+
+      {/* --- Modal สำหรับสร้าง Detail --- */}
+      <dialog id="createtodoDetail-form" className="modal">
+        <div className="modal-box">
+          <CreateTodoDetailPage todolistId={id} resetForm={resetCreateForm} />
           <form method="dialog">
             <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
               ✕
@@ -134,15 +148,15 @@ function TodoDetailPage() {
           </form>
         </div>
       </dialog>
-      {todoDetails.map((el, idx) => (
+
+      {/* --- Modal สำหรับแก้ไข Detail --- */}
+      {selectedDetail && (
         <dialog
-          key={idx}
-          id={`updatetodoDetail-form${el.td_id}`}
+          id={`updatetodoDetail-form${selectedDetail.id}`}
           className="modal"
-          onClose={hdlClose}
         >
-          <div className="modal-box rounded-lg">
-            <EditTodoDetailPage el={el} resetForm={resetForm} />
+          <div className="modal-box">
+            <EditTodoDetailPage el={selectedDetail} resetForm={resetEditForm} />
             <form method="dialog">
               <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
                 ✕
@@ -150,8 +164,9 @@ function TodoDetailPage() {
             </form>
           </div>
         </dialog>
-      ))}
+      )}
     </div>
   );
 }
+
 export default TodoDetailPage;

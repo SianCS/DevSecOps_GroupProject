@@ -4,9 +4,14 @@ const todoApi = axios.create({
   baseURL: "http://localhost:3026/api/todolist",
 });
 
+// --- แก้ไขฟังก์ชันนี้ ---
 const bearerToken = (token) => ({
-  headers: { Authorization: `${token}` },
+  headers: {
+    // เพิ่ม "Bearer " (มีเว้นวรรค) เข้าไปข้างหน้า
+    Authorization: `Bearer ${token}`,
+  },
 });
+// -----------------------
 
 const todoToBackend = {
   getAllTodo: (token) => todoApi.get("/", bearerToken(token)),
